@@ -16,6 +16,7 @@
         <td>Frederick Yonatan Susanto</td>
     </tr>
 </table>
+
 ## A. Tugas Pertama
 
 ### Pembuatan Topologi
