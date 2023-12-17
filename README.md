@@ -1,4 +1,5 @@
 # Jarkom-Modul-5-E15-2023
+
 <table>
     <tr>
         <th colspan=2> Kelompok E15 </th>
@@ -453,3 +454,152 @@ service bind9 restart
 ```
 
 Penjelasan: forward dari NAT melalui IP DNS
+
+## 6. Lalu, karena ternyata terdapat beberapa waktu di mana network administrator dari WebServer tidak bisa stand by, sehingga perlu ditambahkan rule bahwa akses pada hari Senin - Kamis pada jam 12.00 - 13.00 dilarang (istirahat maksi cuy) dan akses di hari Jumat pada jam 11.00 - 13.00 juga dilarang (maklum, Jumatan rek).
+
+Melanjutkan dari soal sebelumnya, soal ini meminta untuk menambahkan rule waktu untuk akses pada Webserver. Lakukan `iptables -F` terlebih dahulu kemudian menambahkan iptables dari nomor 4 dan 5 (optional)
+
+```
+iptables -A INPUT -m time --timestart 12:00 --timestop 13:00 --weekdays Mon,Tue,Wed,Thu -j REJECT
+iptables -A INPUT -m time --timestart 11:00 --timestop 13:00 --weekdays Fri -j REJECT
+```
+
+Penjelasan:
+
+- Menggunakan `REJECT` karena "dilarang"
+- Akses mulai dari jam 12:00 sampai 13:00 pada hari Senin-Kamis akan ditolak
+- Akses mulai dari jam 11:00 sampai 13:00 pada hari Jumat akan ditolak
+
+### Testing:
+
+- Mengubah tanggal terlebih dahulu
+- Lakukan `nc` pada IP Webserver pada client
+
+## 7. Karena terdapat 2 WebServer, kalian diminta agar setiap client yang mengakses Sein dengan Port 80 akan didistribusikan secara bergantian pada Sein dan Stark secara berurutan dan request dari client yang mengakses Stark dengan port 443 akan didistribusikan secara bergantian pada Sein dan Stark secara berurutan.
+
+Untuk menyelesaikan masalah ini, kita dapat mengatur arah routingnya melalui `PREROUTING`. Pada chain `PREROUTING`, dijalankan DNAT (Destination NAT) yaitu ketika anda mengubah alamat tujuan dari paket pertama dengan kata lain anda merubah ke mana komunikasi terjadi. Konfigurasi ini perlu diletakan pada router dekat Webserver yang akan diolah IPnya yaitu Heiter dan Frieren.
+
+```
+iptables -t nat -A PREROUTING -p tcp --dport 80 -d 10.44.4.2 -m statistic --mode nth --every 2 --packet 0 -j DNAT --to-destination 10.44.0.10:80
+
+iptables -t nat -A PREROUTING -p tcp --dport 443 -d 10.44.0.10 -m statistic --mode nth --every 2 --packet 0 -j DNAT --to-destination 10.44.4.2:443
+```
+
+Penjelasan:
+
+- menggunakan PREROUTING berarti menggunakan NAT table
+- `-p tcp --dport 80` untuk protokol port 80
+- `-p tcp --dport 443` untuk protokol port 443
+- `-d 10.44.4.2` / `-d 10.44.0.10` untuk yang mau ke IP Webserver
+- `-m statistic --mode nth --every 2 --packet 0` berarti setiap pemanggilan kelipatan 2, rule akan ditrigger
+- `-j DNAT --to-destination 10.44.0.10:80` / `-j DNAT --to-destination 10.44.4.2:443` jika ditrigger, maka akan diarahkan pada tujuan tersebut
+
+### Testing:
+
+#### Webserver
+
+Pada node ini, kita bisa jalankan
+
+```
+while true; do nc -l -p [port] -c 'echo $HOSTNAME'; done
+```
+
+Penjelasan: setiap kali client / node yang melakukan `nc` pada IP dan port tersebut akan dilemparkan dia melakukan `nc` pada nama Webserver yang mana. [port] dapat diubah ke 80 atau 443.
+
+#### Client / node
+
+lakukan\
+nc 10.44.4.2 80
+
+nc 10.44.0.10 443
+
+## 8. Karena berbeda koalisi politik, maka subnet dengan masyarakat yang berada pada Revolte dilarang keras mengakses WebServer hingga masa pencoblosan pemilu kepala suku 2024 berakhir. Masa pemilu (hingga pemungutan dan penghitungan suara selesai) kepala suku bersamaan dengan masa pemilu Presiden dan Wakil Presiden Indonesia 2024.
+
+Kita diminta agar subnet Revolte tidak bisa mengakses WebServer selama masa pemilu yaitu dari tanggal 14 Februari 2024 sampai 27 Juni 2024.
+
+```
+iptables -I INPUT 1 -s 10.44.0.20/30 -m time --datestart 2024-02-14 --datestop 2024-06-27 -j REJECT
+iptables -I INPUT 2 -s 10.44.0.20/30 -j ACCEPT
+```
+
+Penjelasan:
+
+- `-I INPUT i` masuk pada chain INPUT pada urutan ke-i
+- `-s 10.44.0.20/30` karena dilakukan spesifik subnet, maka kita spesifikasi NID/NetMask
+- `-m time --datestart 2024-02-14 --datestop 2024-06-27` mulai dari tanggal 14 Februari 2024 sampai 27 Juni 2024
+- untuk dari tanggal 14 Februari 2024 sampai 27 Juni 2024 akan ditolak aksesnya
+- Jika tidak memenuhi rule atas, akan akan di-ACCEPT
+
+### Testing
+
+- Ubah tanggal terlebih dahulu
+- Lakukan `nc` pada Webserver dari Revolte
+
+## 9. Sadar akan adanya potensial saling serang antar kubu politik, maka WebServer harus dapat secara otomatis memblokir alamat IP yang melakukan scanning port dalam jumlah banyak (maksimal 20 scan port) di dalam selang waktu 10 menit.
+
+(clue: test dengan nmap)
+
+Soal ini kita diminta untuk melakukan block pada IP yang melakukan scan 20 kali dalam waktu 10 menit. Kita perlu menambahkan konfigurasi iptables pada Webserver sebagai berikut
+
+```
+iptables -N scanning_port # membuat chain baru
+iptables -A INPUT -m recent --name scanning_port --update --seconds 600 --hitcount 20 -j DROP # drop scan port
+iptables -A FORWARD -m recent --name scanning_port --update --seconds 600 --hitcount 20 -j DROP # drop scan port
+
+iptables -A INPUT -m recent --name scanning_port --set -j ACCEPT
+iptables -A FORWARD -m recent --name scanning_port --set -j ACCEPT
+```
+
+Penjelasan:
+
+- Membuat chain baru untuk mencatat scan port (scanning_port)
+- `-m recent --name scanning_port --update --seconds 600 --hitcount 20 -j DROP` menggunakan ruleset `recent` untuk block scan port, dimulai dari nama chain yang dibuat sebelumnya, `--update` mengeccek apakah source address sudah tercatat dalam list atau belum, mengecek dengan hitcount berjumlah 20 dalam waktu 600 detik. Jika tercapai maka akan didrop. Rule ini dilakukan untuk INPUT dan FORWARD
+- `-m recent --name scanning_port --set -j ACCEPT ` dilakukan `--set -j ACCEPT` untuk menambahkan source address pada list scanning_port untuk diperiksa (dilakukan untuk INPUT dan FORWARD)
+
+### Testing
+
+- Kita bisa menggunakan `nmap` karena bisa mengatur pengiriman paket dengan selang waktu tertentu
+
+- atau kita cukup menggunakan `ping` untuk melihat apakah ping akan berhenti pada jumlah 20
+
+## 10. Karena kepala suku ingin tau paket apa saja yang di-drop, maka di setiap node server dan router ditambahkan logging paket yang di-drop dengan standard syslog level.
+
+Soal ini meminta untuk mendaftarkan packet apa saja yang didrop pada logging.
+
+Pertama, mari kita menyalakan `syslog`
+
+```
+echo "
+kern.debug                   -/var/log/syslog" >> /etc/rsyslog.conf
+
+/etc/init.d/rsyslog restart
+```
+
+Penjelasan:
+
+- tambahkan konfigurasi `kern.debug` agar setiap log debug akan masuk dalam syslog yang kita buat
+- Lakukan restart pada rsyslog agar terbuat syslognya
+
+Kemudian, kita membuat iptables untuk mencatat log sebagai berikut:
+
+```
+iptables -N LOGGING
+iptables -A INPUT -j LOGGING
+iptables -A FORWARD -j LOGGING
+iptables -A OUTPUT -j LOGGING
+iptables -A LOGGING -j LOG --log-prefix "PacketsDropped: " --log-level debug
+iptables -A LOGGING -j DROP
+```
+
+Penjelasan:
+
+- Kita membuat chain baru: LOGGING
+- Kemudian INPUT, FORWARD, dan OUTPUT memanggil LOGGING
+- Pada chain LOGGING, dia akan melakukan perintah LOG untuk membuat log dengan `--log-level` debug dan `--log-prefix` berisi 'PacketsDropped: ' sebagai header.
+- Kemudian pada LOGGING lakukan DROP setelah mendaftar
+
+### Testing
+
+- rule LOGGING terdaftar
+
+- syslog
