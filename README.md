@@ -453,7 +453,7 @@ echo 'options {
 service bind9 restart
 ```
 
-Penjelasan: forward dari NAT melalui IP DNS
+## Penjelasan: forward dari NAT melalui IP DNS
 
 ## 6. Lalu, karena ternyata terdapat beberapa waktu di mana network administrator dari WebServer tidak bisa stand by, sehingga perlu ditambahkan rule bahwa akses pada hari Senin - Kamis pada jam 12.00 - 13.00 dilarang (istirahat maksi cuy) dan akses di hari Jumat pada jam 11.00 - 13.00 juga dilarang (maklum, Jumatan rek).
 
@@ -474,6 +474,10 @@ Penjelasan:
 
 - Mengubah tanggal terlebih dahulu
 - Lakukan `nc` pada IP Webserver pada client
+
+![img](imgs/6-1.png)
+![img](imgs/6-2.png)
+![img](imgs/6-3.png)
 
 ## 7. Karena terdapat 2 WebServer, kalian diminta agar setiap client yang mengakses Sein dengan Port 80 akan didistribusikan secara bergantian pada Sein dan Stark secara berurutan dan request dari client yang mengakses Stark dengan port 443 akan didistribusikan secara bergantian pada Sein dan Stark secara berurutan.
 
@@ -506,12 +510,20 @@ while true; do nc -l -p [port] -c 'echo $HOSTNAME'; done
 
 Penjelasan: setiap kali client / node yang melakukan `nc` pada IP dan port tersebut akan dilemparkan dia melakukan `nc` pada nama Webserver yang mana. [port] dapat diubah ke 80 atau 443.
 
+![img](imgs/7-1.png)
+![img](imgs/7-2.png)
+
 #### Client / node
 
 lakukan\
-nc 10.44.4.2 80
 
-nc 10.44.0.10 443
+- **nc 10.44.4.2 80**
+
+![img](imgs/7-3.png)
+
+- **nc 10.44.0.10 443**
+
+![img](imgs/7-4.png)
 
 ## 8. Karena berbeda koalisi politik, maka subnet dengan masyarakat yang berada pada Revolte dilarang keras mengakses WebServer hingga masa pencoblosan pemilu kepala suku 2024 berakhir. Masa pemilu (hingga pemungutan dan penghitungan suara selesai) kepala suku bersamaan dengan masa pemilu Presiden dan Wakil Presiden Indonesia 2024.
 
@@ -534,6 +546,10 @@ Penjelasan:
 
 - Ubah tanggal terlebih dahulu
 - Lakukan `nc` pada Webserver dari Revolte
+
+![img](imgs/8-1.png)
+
+![img](imgs/8-2.png)
 
 ## 9. Sadar akan adanya potensial saling serang antar kubu politik, maka WebServer harus dapat secara otomatis memblokir alamat IP yang melakukan scanning port dalam jumlah banyak (maksimal 20 scan port) di dalam selang waktu 10 menit.
 
@@ -558,9 +574,31 @@ Penjelasan:
 
 ### Testing
 
+Kita akan mencoba implementasi pada Sein
+
+![img](imgs/9-1.png)
+
 - Kita bisa menggunakan `nmap` karena bisa mengatur pengiriman paket dengan selang waktu tertentu
 
+```sh
+#!/bin/bash
+web_server="10.44.4.2" # ip WebServer Sein
+
+for ((i=1; i<=30; i++)); do
+        echo $i
+        nmap -p 80 -T4 -sS "$web_server" # nmap port 80 pada timing T4 (max-rtt-timeout = 1250 ms, bisa diatur menjadi T0, T1, dst)
+done
+```
+
+![img](imgs/9-2.png)
+
+![img](imgs/9-3.png)
+
 - atau kita cukup menggunakan `ping` untuk melihat apakah ping akan berhenti pada jumlah 20
+
+![img](imgs/9-4.png)
+
+![img](imgs/9-5.png)
 
 ## 10. Karena kepala suku ingin tau paket apa saja yang di-drop, maka di setiap node server dan router ditambahkan logging paket yang di-drop dengan standard syslog level.
 
@@ -600,6 +638,21 @@ Penjelasan:
 
 ### Testing
 
+#### Sein (Server)
+
 - rule LOGGING terdaftar
 
+![img](imgs/10-1.png)
+
 - syslog
+
+![img](imgs/10-2.png)
+
+#### Heiter (Router)
+
+![img](imgs/10-3.png)
+
+## Kendala
+
+1. Saat melakukan testing nomor 7, `nc` dari client kadang agak lag terhadap while loop di Web Server (terkadang muncul, terkadang tidak). Akan tetapi secara hasil, sesuai yang diharapkan.
+2. Pada nomor 10, belum menemukan cara tepat untuk mendaftar log pada syslog.
