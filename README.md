@@ -462,7 +462,7 @@ addr_eth0=$(ip -br a show eth0 | awk '{print $3}' | cut -d'/' -f1)
 iptables -t nat -A POSTROUTING -s 10.44.0.0/16 -o eth0 -j SNAT --to-source $addr_eth0
 ```
 
-Penjelasan :
+#### Penjelasan :
 1. `addr_eth0=$(ip -br a show eth0 | awk '{print $3}' | cut -d'/' -f1)`: Baris ini bertujuan untuk mengekstrak alamat IP dari antarmuka jaringan eth0 dan menyimpannya dalam variabel `addr_eth0`. Jadi, variabel ini akan berisi alamat IP dari eth0.
 
 2. `iptables -t nat -A POSTROUTING -s 10.44.0.0/16 -o eth0 -j SNAT --to-source $addr_eth0`: Ini adalah perintah iptables yang sebenarnya. Berikut adalah penjelasan rinci:
@@ -485,7 +485,7 @@ iptables -A INPUT -p tcp -j DROP
 iptables -A INPUT -p udp -j DROP
 ```
 
-Penjelasan:
+#### Penjelasan:
 1. `iptables -A INPUT -p tcp --dport 8080 -j ACCEPT`: Aturan ini menambahkan aturan pada rantai INPUT yang memungkinkan lalu lintas TCP ke port 8080. Ini diartikan sebagai berikut:
    - `-A INPUT`: Menambahkan aturan pada rantai INPUT.
    - `-p tcp`: Menentukan protokol yang akan diizinkan, dalam hal ini, TCP.
@@ -516,7 +516,7 @@ Port 4000
 iptables -A INPUT -p icmp -m connlimit --connlimit-above 3 --connlimit-mask 0 -j DROP
 ```
 
-Penjelasan:
+#### Penjelasan:
 1. `iptables -A INPUT`: Menambahkan aturan pada rantai INPUT.
    
 2. `-p icmp`: Menentukan protokol yang diizinkan, dalam hal ini, ICMP. ICMP digunakan untuk pertukaran pesan kontrol dan kesalahan di jaringan.
@@ -541,7 +541,7 @@ iptables -A INPUT -p tcp --dport 22 -m iprange --src-range 10.44.4.3-10.44.6.2 -
 iptables -A INPUT -p tcp --dport 22 -j DROP
 ```
 
-Penjelasan:
+#### Penjelasan:
 1. `iptables -A INPUT -p tcp --dport 22 -m iprange --src-range 10.44.4.3-10.44.6.2 -j ACCEPT`: Aturan ini memungkinkan lalu lintas TCP ke port 22 (SSH) dari alamat IP dalam rentang 10.44.4.3 hingga 10.44.6.2.
    - `-A INPUT`: Menambahkan aturan pada rantai INPUT.
    - `-p tcp`: Menentukan protokol yang diizinkan, yaitu TCP.
@@ -566,7 +566,7 @@ iptables -A INPUT -m time --timestart 08:00 --timestop 16:00 --weekdays Mon,Tue,
 iptables -A INPUT -j DROP
 ```
 
-Penjelasan:
+#### Penjelasan:
 1. `iptables -A INPUT -m time --timestart 08:00 --timestop 16:00 --weekdays Mon,Tue,Wed,Thu,Fri -j ACCEPT`: Aturan ini memungkinkan lalu lintas pada rentang waktu tertentu pada hari kerja (Senin hingga Jumat) untuk masuk ke dalam server.
    - `-A INPUT`: Menambahkan aturan pada rantai INPUT.
    - `-m time`: Menggunakan modul time untuk menentukan kriteria waktu.
@@ -595,7 +595,7 @@ iptables -A INPUT -m time --timestart 12:00 --timestop 13:00 --weekdays Mon,Tue,
 iptables -A INPUT -m time --timestart 11:00 --timestop 13:00 --weekdays Fri -j REJECT
 ```
 
-Penjelasan:
+#### Penjelasan:
 
 - Menggunakan `REJECT` karena "dilarang"
 - Akses mulai dari jam 12:00 sampai 13:00 pada hari Senin-Kamis akan ditolak
@@ -620,7 +620,7 @@ iptables -t nat -A PREROUTING -p tcp --dport 80 -d 10.44.4.2 -m statistic --mode
 iptables -t nat -A PREROUTING -p tcp --dport 443 -d 10.44.0.10 -m statistic --mode nth --every 2 --packet 0 -j DNAT --to-destination 10.44.4.2:443
 ```
 
-Penjelasan:
+#### Penjelasan:
 
 - menggunakan PREROUTING berarti menggunakan NAT table
 - `-p tcp --dport 80` untuk protokol port 80
@@ -665,7 +665,7 @@ iptables -I INPUT 1 -s 10.44.0.20/30 -m time --datestart 2024-02-14 --datestop 2
 iptables -I INPUT 2 -s 10.44.0.20/30 -j ACCEPT
 ```
 
-Penjelasan:
+#### Penjelasan:
 
 - `-I INPUT i` masuk pada chain INPUT pada urutan ke-i
 - `-s 10.44.0.20/30` karena dilakukan spesifik subnet, maka kita spesifikasi NID/NetMask
@@ -697,7 +697,7 @@ iptables -A INPUT -m recent --name scanning_port --set -j ACCEPT
 iptables -A FORWARD -m recent --name scanning_port --set -j ACCEPT
 ```
 
-Penjelasan:
+#### Penjelasan:
 
 - Membuat chain baru untuk mencatat scan port (scanning_port)
 - `-m recent --name scanning_port --update --seconds 600 --hitcount 20 -j DROP` menggunakan ruleset `recent` untuk block scan port, dimulai dari nama chain yang dibuat sebelumnya, `--update` mengeccek apakah source address sudah tercatat dalam list atau belum, mengecek dengan hitcount berjumlah 20 dalam waktu 600 detik. Jika tercapai maka akan didrop. Rule ini dilakukan untuk INPUT dan FORWARD
@@ -744,7 +744,7 @@ kern.debug                   -/var/log/syslog" >> /etc/rsyslog.conf
 /etc/init.d/rsyslog restart
 ```
 
-Penjelasan:
+#### Penjelasan:
 
 - tambahkan konfigurasi `kern.debug` agar setiap log debug akan masuk dalam syslog yang kita buat
 - Lakukan restart pada rsyslog agar terbuat syslognya
@@ -760,7 +760,7 @@ iptables -A LOGGING -j LOG --log-prefix "PacketsDropped: " --log-level debug
 iptables -A LOGGING -j DROP
 ```
 
-Penjelasan:
+#### Penjelasan:
 
 - Kita membuat chain baru: LOGGING
 - Kemudian INPUT, FORWARD, dan OUTPUT memanggil LOGGING
