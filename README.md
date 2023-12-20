@@ -50,7 +50,7 @@ Untuk menentukan IP address and routing untuk topologi, kita akan menggunakan VL
 
 **Pohon VLSM:**
 
-![img](imgs/VLSM-5.jpg)
+![VLSM Tree](https://github.com/weynard02/Jarkom-Modul-5-E15-2023/assets/106955551/de79806c-e63c-4485-b2cb-fb330c9f7868)
 
 **Sehingga didapatkan pembagian IP:**
 
