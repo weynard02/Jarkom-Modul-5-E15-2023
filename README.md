@@ -456,14 +456,134 @@ service bind9 restart
 ## Penjelasan: forward dari NAT melalui IP DNS
 
 ## 1. Agar topologi yang kalian buat dapat mengakses keluar, kalian diminta untuk mengkonfigurasi Aura menggunakan iptables, tetapi tidak ingin menggunakan MASQUERADE.
+### Aura
+```
+addr_eth0=$(ip -br a show eth0 | awk '{print $3}' | cut -d'/' -f1)
+iptables -t nat -A POSTROUTING -s 10.44.0.0/16 -o eth0 -j SNAT --to-source $addr_eth0
+```
+
+Penjelasan :
+1. `addr_eth0=$(ip -br a show eth0 | awk '{print $3}' | cut -d'/' -f1)`: Baris ini bertujuan untuk mengekstrak alamat IP dari antarmuka jaringan eth0 dan menyimpannya dalam variabel `addr_eth0`. Jadi, variabel ini akan berisi alamat IP dari eth0.
+
+2. `iptables -t nat -A POSTROUTING -s 10.44.0.0/16 -o eth0 -j SNAT --to-source $addr_eth0`: Ini adalah perintah iptables yang sebenarnya. Berikut adalah penjelasan rinci:
+
+   - `-t nat`: Menunjukkan bahwa aturan ini akan diterapkan pada tabel NAT.
+   - `-A POSTROUTING`: Menambahkan aturan pada rantai POSTROUTING.
+   - `-s 10.44.0.0/16`: Mengidentifikasi alamat sumber yang cocok dengan jaringan 10.44.0.0/16.
+   - `-o eth0`: Menetapkan antarmuka keluar sebagai eth0.
+   - `-j SNAT`: Menentukan tindakan untuk melakukan Source NAT (SNAT), menggantikan alamat sumber paket.
+   - `--to-source $addr_eth0`: Menentukan alamat IP sumber yang baru, yang diambil dari variabel `addr_eth0`.
+
+### Testing:
+![Screenshot (5207)](https://github.com/weynard02/Jarkom-Modul-5-E15-2023/assets/106955551/c2ea2622-be72-413b-906f-090e6a3b93e5)
 
 ## 2. Kalian diminta untuk melakukan drop semua TCP dan UDP kecuali port 8080 pada TCP.
+### Aura
+```
+iptables -A INPUT -p tcp --dport 8080 -j ACCEPT
+iptables -A INPUT -p tcp -j DROP
+iptables -A INPUT -p udp -j DROP
+```
+
+Penjelasan:
+1. `iptables -A INPUT -p tcp --dport 8080 -j ACCEPT`: Aturan ini menambahkan aturan pada rantai INPUT yang memungkinkan lalu lintas TCP ke port 8080. Ini diartikan sebagai berikut:
+   - `-A INPUT`: Menambahkan aturan pada rantai INPUT.
+   - `-p tcp`: Menentukan protokol yang akan diizinkan, dalam hal ini, TCP.
+   - `--dport 8080`: Menentukan port tujuan yang diizinkan, yaitu port 8080.
+   - `-j ACCEPT`: Menentukan tindakan yang akan diambil jika paket memenuhi syarat, yaitu menerima paket.
+
+2. `iptables -A INPUT -p tcp -j DROP`: Aturan ini menambahkan aturan pada rantai INPUT yang menolak semua lalu lintas TCP yang tidak sesuai dengan aturan sebelumnya. Penjelasannya:
+   - `-A INPUT`: Menambahkan aturan pada rantai INPUT.
+   - `-p tcp`: Menentukan protokol yang akan ditolak, dalam hal ini, TCP.
+   - `-j DROP`: Menentukan tindakan yang akan diambil jika paket tidak memenuhi syarat, yaitu menolak paket.
+
+3. `iptables -A INPUT -p udp -j DROP`: Aturan ini menambahkan aturan pada rantai INPUT yang menolak semua lalu lintas UDP. Penjelasannya:
+   - `-A INPUT`: Menambahkan aturan pada rantai INPUT.
+   - `-p udp`: Menentukan protokol yang akan ditolak, yaitu UDP.
+   - `-j DROP`: Menentukan tindakan yang akan diambil jika paket tidak memenuhi syarat, yaitu menolak paket.
+
+### Testing:
+Port 8080 
+![Screenshot (5208)](https://github.com/weynard02/Jarkom-Modul-5-E15-2023/assets/106955551/f128d804-1696-44d5-8069-0057f4b11f61)
+
+Port 4000
+![Screenshot (5209)](https://github.com/weynard02/Jarkom-Modul-5-E15-2023/assets/106955551/3225b0c7-9a78-430c-b40e-7339a96449fc)
+
 
 ## 3. Kepala Suku North Area meminta kalian untuk membatasi DHCP dan DNS Server hanya dapat dilakukan ping oleh maksimal 3 device secara bersamaan, selebihnya akan di drop.
+### DHCP DNS
+```
+iptables -A INPUT -p icmp -m connlimit --connlimit-above 3 --connlimit-mask 0 -j DROP
+```
+
+Penjelasan:
+1. `iptables -A INPUT`: Menambahkan aturan pada rantai INPUT.
+   
+2. `-p icmp`: Menentukan protokol yang diizinkan, dalam hal ini, ICMP. ICMP digunakan untuk pertukaran pesan kontrol dan kesalahan di jaringan.
+
+3. `-m connlimit`: Menggunakan modul connlimit untuk menetapkan pembatasan koneksi.
+   
+4. `--connlimit-above 3`: Menentukan batas atas jumlah koneksi yang diizinkan. Dalam hal ini, aturan akan berlaku jika jumlah koneksi melebihi 3.
+
+5. `--connlimit-mask 0`: Menetapkan maska koneksi. Dengan nilai 0, setiap alamat IP akan dihitung secara terpisah. Artinya, batasan koneksi berlaku untuk setiap alamat IP secara individu, tanpa memperhatikan subnetting atau kelompok alamat IP.
+
+6. `-j DROP`: Menetapkan tindakan yang akan diambil jika batas koneksi terlampaui, yaitu menolak (DROP) paket tersebut.
+
+### Testing:
+![Screenshot (5210)](https://github.com/weynard02/Jarkom-Modul-5-E15-2023/assets/106955551/210ebebb-a0a3-430a-b2b2-96cbbe820439)
+
+Pada node GrobeForest tidak bisa melakukan ping, karena sudah ada 3 ping secara bersamaan di 3 node lainnya yaitu LaubHills, SchwerMountains, TurkRegion.
 
 ## 4. Lakukan pembatasan sehingga koneksi SSH pada Web Server hanya dapat dilakukan oleh masyarakat yang berada pada GrobeForest.
+### Webserver
+```
+iptables -A INPUT -p tcp --dport 22 -m iprange --src-range 10.44.4.3-10.44.6.2 -j ACCEPT
+iptables -A INPUT -p tcp --dport 22 -j DROP
+```
+
+Penjelasan:
+1. `iptables -A INPUT -p tcp --dport 22 -m iprange --src-range 10.44.4.3-10.44.6.2 -j ACCEPT`: Aturan ini memungkinkan lalu lintas TCP ke port 22 (SSH) dari alamat IP dalam rentang 10.44.4.3 hingga 10.44.6.2.
+   - `-A INPUT`: Menambahkan aturan pada rantai INPUT.
+   - `-p tcp`: Menentukan protokol yang diizinkan, yaitu TCP.
+   - `--dport 22`: Menentukan port tujuan yang diizinkan, yaitu port 22 (SSH).
+   - `-m iprange --src-range 10.44.4.3-10.44.6.2`: Menggunakan modul iprange untuk menentukan rentang alamat IP yang diizinkan sebagai sumber (source).
+   - `-j ACCEPT`: Menetapkan tindakan yang akan diambil jika paket memenuhi syarat, yaitu menerima paket.
+
+2. `iptables -A INPUT -p tcp --dport 22 -j DROP`: Aturan ini menolak semua lalu lintas TCP ke port 22 yang tidak sesuai dengan aturan sebelumnya. Penjelasannya:
+   - `-A INPUT`: Menambahkan aturan pada rantai INPUT.
+   - `-p tcp`: Menentukan protokol yang akan ditolak, yaitu TCP.
+   - `--dport 22`: Menentukan port tujuan yang ditolak, yaitu port 22 (SSH).
+   - `-j DROP`: Menetapkan tindakan yang akan diambil jika paket tidak memenuhi syarat, yaitu menolak paket.
+
+### Testing:
+![Screenshot (5211)](https://github.com/weynard02/Jarkom-Modul-5-E15-2023/assets/106955551/9e46a1aa-7020-4b51-8c76-c5921fa683b0)
+
 
 ## 5. Selain itu, akses menuju WebServer hanya diperbolehkan saat jam kerja yaitu Senin-Jumat pada pukul 08.00-16.00.
+### Web server
+```
+iptables -A INPUT -m time --timestart 08:00 --timestop 16:00 --weekdays Mon,Tue,Wed,Thu,Fri -j ACCEPT
+iptables -A INPUT -j DROP
+```
+
+Penjelasan:
+1. `iptables -A INPUT -m time --timestart 08:00 --timestop 16:00 --weekdays Mon,Tue,Wed,Thu,Fri -j ACCEPT`: Aturan ini memungkinkan lalu lintas pada rentang waktu tertentu pada hari kerja (Senin hingga Jumat) untuk masuk ke dalam server.
+   - `-A INPUT`: Menambahkan aturan pada rantai INPUT.
+   - `-m time`: Menggunakan modul time untuk menentukan kriteria waktu.
+   - `--timestart 08:00 --timestop 16:00`: Menentukan rentang waktu mulai dari 08:00 hingga 16:00.
+   - `--weekdays Mon,Tue,Wed,Thu,Fri`: Menentukan hari-hari ketika aturan ini berlaku (Senin hingga Jumat).
+   - `-j ACCEPT`: Menetapkan tindakan yang akan diambil jika paket memenuhi syarat, yaitu menerima paket.
+
+2. `iptables -A INPUT -j DROP`: Aturan ini menolak semua lalu lintas yang tidak sesuai dengan aturan waktu sebelumnya. Penjelasannya:
+   - `-A INPUT`: Menambahkan aturan pada rantai INPUT.
+   - `-j DROP`: Menetapkan tindakan yang akan diambil jika paket tidak memenuhi syarat, yaitu menolak paket.
+
+### Testing:
+Sukses (pada jam kerja)
+![Screenshot (5212)](https://github.com/weynard02/Jarkom-Modul-5-E15-2023/assets/106955551/908b1566-79f9-43fd-9b6d-2dddd625e31a)
+
+Gagal (di luar jam kerja)
+![Screenshot (5213)](https://github.com/weynard02/Jarkom-Modul-5-E15-2023/assets/106955551/8f77c4bf-6176-4434-a74e-9644f0f841b2)
 
 
 ## 6. Lalu, karena ternyata terdapat beberapa waktu di mana network administrator dari WebServer tidak bisa stand by, sehingga perlu ditambahkan rule bahwa akses pada hari Senin - Kamis pada jam 12.00 - 13.00 dilarang (istirahat maksi cuy) dan akses di hari Jumat pada jam 11.00 - 13.00 juga dilarang (maklum, Jumatan rek).
